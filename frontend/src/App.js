@@ -2,145 +2,138 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000/api/tasks';
-
 function App() {
-    const [tasks, setTasks] = useState([]);
-    const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [title, setTitle] = useState('');
+  const [desc, setDesc] = useState('');
+  const [search, setSearch] = useState('');
 
-    // Fetch all tasks
-    const fetchTasks = async () => {
-        setLoading(true);
-        try {
-            const response = await axios.get(API_URL);
-            setTasks(response.data);
-            setError(null);
-        } catch (err) {
-            setError('Failed to fetch tasks');
-            console.error(err);
-        }
-        setLoading(false);
-    };
+  // Local URL for testing
+  const url = 'http://localhost:5000/api/tasks';
 
-    useEffect(() => {
-        fetchTasks();
-    }, []);
+  // Get all tasks when page loads
+  useEffect(() => {
+    getTasks();
+  }, []);
 
-    // Add a new task
-    const addTask = async (e) => {
-        e.preventDefault();
-        if (!title || !description) return alert('Fill all fields');
+  const getTasks = async () => {
+    try {
+      const res = await axios.get(url);
+      setTasks(res.data);
+    } catch (e) {
+      console.log('could not get tasks');
+    }
+  };
 
-        try {
-            const response = await axios.post(API_URL, { title, description });
-            setTasks([response.data, ...tasks]);
-            setTitle('');
-            setDescription('');
-        } catch (err) {
-            setError('Failed to add task');
-        }
-    };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (title === '' || desc === '') {
+      alert('please fill in everything');
+      return;
+    }
 
-    // Toggle task completion
-    const toggleComplete = async (task) => {
-        try {
-            const response = await axios.put(`${API_URL}/${task._id}`, {
-                completed: !task.completed
-            });
-            setTasks(tasks.map(t => t._id === task._id ? response.data : t));
-        } catch (err) {
-            setError('Failed to update task');
-        }
-    };
+    try {
+      const res = await axios.post(url, {
+        title: title,
+        description: desc
+      });
+      // Add the new task to the list
+      setTasks([...tasks, res.data]);
+      setTitle('');
+      setDesc('');
+    } catch (e) {
+      alert('failed to add');
+    }
+  };
 
-    // Delete a task
-    const deleteTask = async (id) => {
-        if (!window.confirm('Are you sure?')) return;
-        try {
-            await axios.delete(`${API_URL}/${id}`);
-            setTasks(tasks.filter(t => t._id !== id));
-        } catch (err) {
-            setError('Failed to delete task');
-        }
-    };
+  const toggleDone = async (id, status) => {
+    try {
+      const res = await axios.put(`${url}/${id}`, {
+        completed: !status
+      });
+      // update the task in the state
+      const newTasks = tasks.map(t => {
+        if (t._id === id) return res.data;
+        return t;
+      });
+      setTasks(newTasks);
+    } catch (e) {
+      console.log('update error');
+    }
+  };
 
-    // Search tasks
-    const handleSearch = async (e) => {
-        const value = e.target.value;
-        setSearchTerm(value);
-        if (value.trim() === '') {
-            fetchTasks();
-            return;
-        }
-        try {
-            const response = await axios.get(`${API_URL}/search?q=${value}`);
-            setTasks(response.data);
-        } catch (err) {
-            setError('Search failed');
-        }
-    };
+  const removeTask = async (id) => {
+    try {
+      await axios.delete(`${url}/${id}`);
+      setTasks(tasks.filter(t => t._id !== id));
+    } catch (e) {
+      console.log('delete error');
+    }
+  };
 
-    return (
-        <div className="container">
-            <h1>My To-Do List</h1>
+  const handleSearch = async (val) => {
+    setSearch(val);
+    if (val === '') {
+      getTasks();
+    } else {
+      try {
+        const res = await axios.get(`${url}/search?q=${val}`);
+        setTasks(res.data);
+      } catch (e) {
+        console.log('search failed');
+      }
+    }
+  };
 
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+  return (
+    <div className="App">
+      <h1>My To-Do App</h1>
+      
+      <div className="form-box">
+        <form onSubmit={handleSubmit}>
+          <input 
+            type="text" 
+            placeholder="What needs to be done?" 
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <br/>
+          <textarea 
+            placeholder="Add some details..." 
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+          />
+          <br/>
+          <button type="submit">Add Task</button>
+        </form>
+      </div>
 
-            <form className="task-form" onSubmit={addTask}>
-                <input 
-                    type="text" 
-                    placeholder="Task Title" 
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                />
-                <textarea 
-                    placeholder="Task Description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                ></textarea>
-                <button type="submit">Add Task</button>
-            </form>
+      <div className="search-box">
+        <input 
+          type="text" 
+          placeholder="Search for a task..." 
+          value={search}
+          onChange={(e) => handleSearch(e.target.value)}
+        />
+      </div>
 
-            <input 
-                type="text" 
-                className="search-bar" 
-                placeholder="Search tasks..." 
-                value={searchTerm}
-                onChange={handleSearch}
-            />
-
-            {loading ? <p>Loading...</p> : (
-                <ul className="task-list">
-                    {tasks.map(task => (
-                        <li key={task._id} className="task-item">
-                            <div className={`task-info ${task.completed ? 'completed' : ''}`}>
-                                <h3>{task.title}</h3>
-                                <p>{task.description}</p>
-                            </div>
-                            <div className="actions">
-                                <button 
-                                    className="complete-btn" 
-                                    onClick={() => toggleComplete(task)}
-                                >
-                                    {task.completed ? 'Undo' : 'Done'}
-                                </button>
-                                <button 
-                                    className="delete-btn" 
-                                    onClick={() => deleteTask(task._id)}
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </div>
-    );
+      <div className="task-list">
+        {tasks.length === 0 && <p>No tasks yet!</p>}
+        {tasks.map(task => (
+          <div key={task._id} className="task">
+            <div style={{ textDecoration: task.completed ? 'line-through' : 'none' }}>
+              <h3>{task.title}</h3>
+              <p>{task.description}</p>
+            </div>
+            <button onClick={() => toggleDone(task._id, task.completed)}>
+              {task.completed ? 'Undo' : 'Done'}
+            </button>
+            <button onClick={() => removeTask(task._id)}>Delete</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default App;

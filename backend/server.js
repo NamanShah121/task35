@@ -1,36 +1,28 @@
-require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const taskRoutes = require('./routes/taskRoutes');
+require('dotenv').config();
 
 const app = express();
 
-// Middleware
 app.use(cors());
-app.use(express.json()); // This allows us to send JSON data
+app.use(express.json());
 
-// Basic Route for testing
-app.get('/', (req, res) => {
-    res.send('Server is running...');
-});
-
-// API Routes
+// Routes
+const taskRoutes = require('./routes/taskRoutes');
 app.use('/api/tasks', taskRoutes);
 
-// Connect to MongoDB
+app.get('/', (req, res) => {
+    res.send('API is running');
+});
+
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI;
 
-console.log('Connecting to:', MONGO_URI);
-
-mongoose.connect(MONGO_URI)
-    .then(() => {
-        console.log('MongoDB Connected');
-        app.listen(PORT, () => {
-            console.log(`Server started on port ${PORT}`);
-        });
-    })
-    .catch((err) => {
-        console.log('Error: ', err.message);
+mongoose.connect(process.env.MONGO_URI)
+.then(() => {
+    console.log('connected to db');
+    app.listen(PORT, () => {
+        console.log('server is on port ' + PORT);
     });
+})
+.catch(err => console.log(err));
